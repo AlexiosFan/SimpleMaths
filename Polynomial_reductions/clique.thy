@@ -16,41 +16,93 @@ fun vertex_cover :: "'a graph => 'a set => bool" where
 
 fun clique :: "'a graph => 'a set => bool" where
 "clique g s = (
-    let (_, e) = g in (\<forall>a \<in> s. \<forall> b \<in> s. {a, b} \<in> e)
+    let (_, e) = g in (\<forall>a \<in> s. \<forall> b \<in> s. a \<noteq> b \<longrightarrow> {a, b} \<in> e)
 )"
 
 fun vc_to_clique :: "'a graph => 'a graph" where
 "vc_to_clique g = (
-    let (v, e) = g in (v, {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e})
+    let (v, e) = g in (v, {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b})
 )"
 
-theorem vc_clique: "invar (v, e) \<Longrightarrow> clique (vc_to_clique (v, e)) (v - s) = vertex_cover (v, e) s"
-proof -
-assume "invar (v, e)"
-hence prems: "\<forall>s \<in> e. (\<forall>x \<in> s. x \<in> v)" "\<forall>s \<in> e. \<exists>a \<in> v. \<exists> b \<in> v. s = {a, b}" 
-apply (auto simp: invar_def) by (metis card_2_iff insert_iff) 
+theorem invar_vc_to_clique : "invar (v, e) \<Longrightarrow> invar (vc_to_clique (v, e))"
+by (auto simp add: invar_def)
 
-have "clique (vc_to_clique (v, e)) (v - s) = (\<forall>a \<in>v-s. \<forall>b \<in> v-s. {a, b} \<in> {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e})" by simp
-also have "... = (\<forall>a \<in>v-s. \<forall>b \<in> v-s. {a, b} \<notin> e)" by blast
-also have "... = (\<forall>s1 \<in> e. \<exists>a b. s1 = {a, b} \<and> (a \<notin> v-s \<or> b \<notin> v-s))" 
-using prems by (smt (z3) doubleton_eq_iff)
-also have "... = (\<forall>s1 \<in> e. \<exists>a \<in> s1. a \<notin> v-s)" using prems(2) by fastforce
-also have "... = (\<forall>s1 \<in> e. \<exists>a \<in> s1. a \<in> s)" using prems(1) by simp
-finally show ?thesis  by simp
+theorem vc_clique: 
+assumes "invar (v, e)"
+shows "clique (vc_to_clique (v, e)) (v - s) = vertex_cover (v, e) s"
+proof 
+  have 1:"\<forall>a. {a} \<notin> e" using assms invar_def by force
+  from assms have prems: "\<forall>s \<in> e. (\<forall>x \<in> s. x \<in> v)" "\<forall>s \<in> e. \<exists>a \<in> v. \<exists> b \<in> v. s = {a, b}" 
+  apply (auto simp: invar_def) by (metis card_2_iff insert_iff)
+
+  assume "clique (vc_to_clique (v, e)) (v - s)"
+  hence "\<forall>a \<in> v-s. \<forall>b \<in> v-s. a \<noteq> b \<longrightarrow> {a, b} \<in> {s. \<exists>a\<in>v. \<exists>b\<in>v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b}" by simp
+  hence "\<forall>a \<in> v-s. \<forall>b \<in> v-s. a \<noteq> b \<longrightarrow> {a, b} \<notin> e" by auto
+  hence "\<forall>a \<in> v-s. \<forall>b \<in> v-s. {a, b} \<notin> e" using 1 by force
+  hence "\<forall>s1 \<in> e. \<exists>a b. s1 = {a, b} \<and> (a \<notin> v-s \<or> b \<notin> v-s)" 
+  using prems(2) by (smt (z3) doubleton_eq_iff)
+  hence "\<forall>s1 \<in> e. \<exists>a \<in> s1. a \<notin> v-s"
+  by auto
+  hence "\<forall>s1 \<in> e. \<exists>a \<in> s1. a \<in> s"
+  using prems(1) by simp
+  thus "vertex_cover (v, e) s" by simp
+
+next 
+  assume "vertex_cover (v, e) s"
+  hence "\<forall>s1 \<in> e. \<exists>a \<in> s1. a \<in> s" by simp
+  hence "\<forall>s1 \<in> e. \<exists>a \<in> s1. a \<notin> v-s" by auto
+  hence "\<forall>a \<in>v-s. \<forall>b \<in>v-s. a \<noteq> b \<longrightarrow> {a, b} \<notin> e" by fast
+  thus "clique (vc_to_clique (v, e)) (v - s)" by auto
 qed
 
 fun T_vc_to_clique :: "'a graph => nat" where
-"T_vc_to_clique g = (
-    let (v, e) = g in (card v) + (card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e})
-)"
+"T_vc_to_clique (v, e) = card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b}"
 
-theorem polynomil_time_vc_to_clique : "\<lbrakk>n = card v; m = card e; invar (v, e)\<rbrakk> 
-\<Longrightarrow> T_vc_to_clique (v, e) = (n ^ 2 + n) div 2 - m"
+lemma 
+assumes "finite v"
+shows "card {p. \<exists>a \<in> v. \<exists>b \<in> v. p = (a, b)} = card v * card v"
+using assms apply (induction v rule: finite_induct_select)
+apply auto
+sorry
+
+
+lemma aux: 
+assumes "finite v"
+shows "card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b} = card v * (card v - 1) div 2"
+sorry
+
+theorem vc_to_clique_polynomial : "\<lbrakk>invar (v, e); finite e; finite v\<rbrakk> 
+\<Longrightarrow> T_vc_to_clique (v, e) = card v * (card v -1) div 2 - card e"
 proof-
-  assume prems: "n = card v" "m = card e" "invar (v, e)"
-  then have "2 * T_vc_to_clique (v, e) = n ^ 2 + n - 2 * m" apply auto sorry
-  then show ?thesis by simp
+
+assume assms: "invar (v, e)" "finite e" "finite v"
+hence "\<forall>s \<in> e. \<exists>a \<in> v. \<exists> b \<in> v. s = {a, b} \<and> a \<noteq> b" 
+apply (auto simp add: invar_def) by (metis card_2_iff insert_iff)
+
+hence 1: "e \<subseteq> {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b}" by auto 
+
+have "{s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b} 
+  = {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b} - e" by auto
+from card_Diff_subset[OF assms(2) 1] this 
+have "card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b} = 
+card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b} - card e" by argo
+also have "... = card v * (card v - 1) div 2 - card e" by (auto simp add: aux[OF assms(3)])
+finally show ?thesis by simp
+
 qed
+
+(*
+assume assms: "card v = n" "card e = m" "invar (v, e)" 
+hence "\<forall>s \<in> e. \<exists>a \<in> v. \<exists> b \<in> v. s = {a, b} \<and> a \<noteq> b" 
+apply (auto simp add: invar_def) by (metis card_2_iff insert_iff)
+
+hence "e \<subseteq> {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b}" by auto 
+
+have "{s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b} 
+  = {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b} - e" by auto
+hence "card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b} 
+= card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b} - card e"
+*)
 
 
 (*for tcnf, limit to cnf where clauses have exactly 3 elements for simplification reason*)
