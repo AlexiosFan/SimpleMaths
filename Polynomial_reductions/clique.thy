@@ -58,18 +58,89 @@ qed
 fun T_vc_to_clique :: "'a graph => nat" where
 "T_vc_to_clique (v, e) = card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b}"
 
-lemma 
-assumes "finite v"
-shows "card {p. \<exists>a \<in> v. \<exists>b \<in> v. p = (a, b)} = card v * card v"
-using assms apply (induction v rule: finite_induct_select)
-apply auto
-sorry
+lemma aux0 :
+assumes "finite A" "x \<in> A"
+shows "card {s. \<exists>a\<in>A. s={x, a} \<and> a \<noteq> x} = card A - 1"
+using assms proof (induction A rule: remove_induct)
+case empty
+  then show ?case by simp
+next
+  case infinite
+  then show ?case by simp
+next
+  case (remove A)
+  
+  hence 0:"\<forall>y \<in> A - {x}. card {s. \<exists>a\<in>A - {y}. s = {x, a} \<and> a \<noteq> x} = card (A - {y}) - 1" 
+  by auto
 
+  have "\<forall>y \<in> A - {x}. {s. \<exists>a\<in>A. s = {x, a} \<and> a \<noteq> x} = insert {x, y} {s. \<exists>a\<in>A - {y}. s = {x, a} \<and> a \<noteq> x}"
+  by auto
+
+  moreover have "\<forall>y \<in> A - {x}. {x, y} \<notin> {s. \<exists>a\<in>A - {y}. s = {x, a} \<and> a \<noteq> x}"
+  by auto
+
+  ultimately have 1:"\<forall>y \<in> A - {x}. card {s. \<exists>a\<in>A. s = {x, a} \<and> a \<noteq> x} = card {s. \<exists>a\<in>A - {y}. s = {x, a} \<and> a \<noteq> x} + 1"
+    using remove by simp
+
+  from 0 1 have "\<forall>y \<in> A - {x}. card {s. \<exists>a\<in>A. s = {x, a} \<and> a \<noteq> x} = card (A - {y}) - 1 + 1" by simp
+  
+  hence 3: "\<forall>y \<in> A - {x}. card {s. \<exists>a\<in>A. s = {x, a} \<and> a \<noteq> x} = card (A) - 1"
+     by (metis (no_types, lifting) One_nat_def add.right_neutral add_Suc_right card_Diff_singleton 
+     card_Suc_Diff1 finite_insert insert_Diff_single insert_iff remove.prems(1) remove.prems(2))
+  
+     
+  from 3 show ?case apply auto by (metis card_le_Suc0_iff_eq remove.prems(1))
+  
+qed
 
 lemma aux: 
 assumes "finite v"
 shows "card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b} = card v * (card v - 1) div 2"
-sorry
+using assms proof (induction v rule: finite_remove_induct)
+  case empty
+  then show ?case by auto
+next
+  case (remove A)
+  have "\<forall>x \<in> A. {s. \<exists>a\<in>A - {x}. \<exists>b\<in>A - {x}. s = {a, b} \<and> a \<noteq> b} = 
+  {s. \<exists>a\<in>A. \<exists>b\<in>A. s = {a, b} \<and> a \<noteq> b} - {s. \<exists>a\<in>A. s={x, a} \<and> a \<noteq> x}" by auto
+
+  hence "\<forall>x \<in> A. {s. \<exists>a\<in>A. \<exists>b\<in>A. s = {a, b} \<and> a \<noteq> b} = 
+    {s. \<exists>a\<in>A - {x}. \<exists>b\<in>A - {x}. s = {a, b} \<and> a \<noteq> b} \<union> {s. \<exists>a\<in>A. s={x, a} \<and> a \<noteq> x}"
+    by auto
+
+  moreover have "\<forall>x \<in> A. finite {s. \<exists>a\<in>A - {x}. \<exists>b\<in>A - {x}. s = {a, b} \<and> a \<noteq> b}"
+  using remove by simp
+
+  moreover have "\<forall>x \<in> A. finite {s. \<exists>a\<in>A. s={x, a} \<and> a \<noteq> x}" using remove by simp
+
+  moreover have "\<forall>x \<in> A. {s. \<exists>a\<in>A - {x}. \<exists>b\<in>A - {x}. s = {a, b} \<and> a \<noteq> b} 
+    \<inter> {s. \<exists>a\<in>A. s={x, a} \<and> a \<noteq> x} = {}" by auto
+
+  ultimately have "\<forall>x \<in> A. card {s. \<exists>a\<in>A. \<exists>b\<in>A. s = {a, b} \<and> a \<noteq> b}
+    = card {s. \<exists>a\<in>A - {x}. \<exists>b\<in>A - {x}. s = {a, b} \<and> a \<noteq> b} + card {s. \<exists>a\<in>A. s={x, a} \<and> a \<noteq> x}" 
+  
+  using card_Un_disjoint by fastforce
+
+  hence "\<forall>x \<in> A. card {s. \<exists>a\<in>A. \<exists>b\<in>A. s = {a, b} \<and> a \<noteq> b}
+    = card (A - {x}) * (card (A - {x}) - 1) div 2 + (card A - 1)" 
+  using aux0 remove by fastforce
+
+  hence "\<forall>x \<in> A. card {s. \<exists>a\<in>A. \<exists>b\<in>A. s = {a, b} \<and> a \<noteq> b}
+    = (card A - 1) * (card A - 2) div 2 + (card A - 1)"
+ by (metis (no_types, lifting) card_Diff_singleton diff_diff_left nat_1_add_1)
+
+  hence "\<forall>x \<in> A. card {s. \<exists>a\<in>A. \<exists>b\<in>A. s = {a, b} \<and> a \<noteq> b}
+    = ((card A - 1) * (card A - 2) + (card A - 1) * 2) div 2"
+    by simp
+
+  hence "\<forall>x \<in> A. card {s. \<exists>a\<in>A. \<exists>b\<in>A. s = {a, b} \<and> a \<noteq> b}
+    = card A * (card A - 1) div 2" 
+    by (metis (no_types, lifting) One_nat_def cancel_comm_monoid_add_class.diff_cancel
+     card_0_eq distrib_left le_add_diff_inverse2 less_Suc0 less_Suc_eq 
+     linorder_not_less mult.commute mult_zero_right one_add_one plus_1_eq_Suc remove.hyps(1) remove.hyps(2))
+
+  then show ?case by auto
+qed
 
 theorem vc_to_clique_polynomial : "\<lbrakk>invar (v, e); finite e; finite v\<rbrakk> 
 \<Longrightarrow> T_vc_to_clique (v, e) = card v * (card v -1) div 2 - card e"
@@ -90,26 +161,5 @@ also have "... = card v * (card v - 1) div 2 - card e" by (auto simp add: aux[OF
 finally show ?thesis by simp
 
 qed
-
-(*
-assume assms: "card v = n" "card e = m" "invar (v, e)" 
-hence "\<forall>s \<in> e. \<exists>a \<in> v. \<exists> b \<in> v. s = {a, b} \<and> a \<noteq> b" 
-apply (auto simp add: invar_def) by (metis card_2_iff insert_iff)
-
-hence "e \<subseteq> {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b}" by auto 
-
-have "{s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b} 
-  = {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b} - e" by auto
-hence "card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b} 
-= card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b} - card e"
-*)
-
-
-(*for tcnf, limit to cnf where clauses have exactly 3 elements for simplification reason*)
-
-datatype vertex = Pos "nat" | Neg "nat" | F "nat" | S "nat" | T "nat"
-
-(*TODO: 3cnf to vc, hindering: the modeling of 3cnf, either set or triple raises significant
-problems*)
 
 end
