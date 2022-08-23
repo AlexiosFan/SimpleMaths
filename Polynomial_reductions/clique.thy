@@ -2,6 +2,11 @@ theory clique
   imports Main sat
 begin
 
+text \<open>Formalise the polynomial time reduction between vertex cover, 
+clique and independent set\<close>
+
+section \<open>definitions\<close>
+
 type_synonym 'a graph = "'a set \<times> ('a set set)"
 
 definition invar :: "'a graph => bool" where
@@ -24,10 +29,15 @@ fun vc_to_clique :: "'a graph => 'a graph" where
     let (v, e) = g in (v, {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b})
 )"
 
+fun T_vc_to_clique :: "'a graph => nat" where
+"T_vc_to_clique (v, e) = card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b}"
+
+section \<open>proofs of invariant, correctness and polynomial time\<close>
+
 theorem invar_vc_to_clique : "invar (v, e) \<Longrightarrow> invar (vc_to_clique (v, e))"
 by (auto simp add: invar_def)
 
-theorem vc_clique: 
+theorem vc_clique_correct: 
 assumes "invar (v, e)"
 shows "clique (vc_to_clique (v, e)) (v - s) = vertex_cover (v, e) s"
 proof 
@@ -54,9 +64,6 @@ next
   hence "\<forall>a \<in>v-s. \<forall>b \<in>v-s. a \<noteq> b \<longrightarrow> {a, b} \<notin> e" by fast
   thus "clique (vc_to_clique (v, e)) (v - s)" by auto
 qed
-
-fun T_vc_to_clique :: "'a graph => nat" where
-"T_vc_to_clique (v, e) = card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b}"
 
 lemma aux0 :
 assumes "finite A" "x \<in> A"
@@ -160,6 +167,82 @@ card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b}
 also have "... = card v * (card v - 1) div 2 - card e" by (auto simp add: aux[OF assms(3)])
 finally show ?thesis by simp
 
+qed
+
+section \<open>independent set\<close>
+
+fun independent_set :: "'a graph => 'a set => bool" where
+"independent_set g s = (
+  let (v, e) = g in 
+    (\<forall>a \<in>s. \<forall>b \<in>s. a \<noteq> b \<longrightarrow> {a, b} \<notin> e)
+)"
+
+
+text \<open>constant reduction from independet set to vertex cover\<close>
+fun is_to_vc :: "'a graph => 'a graph" where
+"is_to_vc g = g"
+
+fun T_is_to_vc :: "'a graph => nat" where
+"T_is_to_vc _ = 1"
+
+theorem is_to_vc_correct:
+assumes "invar (v, e)"
+shows "independent_set (v, e) s = vertex_cover (is_to_vc (v, e)) (v-s)"
+proof
+  from assms have prems: "\<forall>s \<in> e. (\<forall>x \<in> s. x \<in> v)" "\<forall>s \<in> e. \<exists>a \<in> v. \<exists> b \<in> v. s = {a, b}" 
+  apply (auto simp: invar_def) by (metis card_2_iff insert_iff)
+
+  assume "independent_set (v, e) s"
+  hence "\<forall>a \<in>s. \<forall>b \<in>s. a \<noteq> b \<longrightarrow> {a, b} \<notin> e" by simp
+  hence "(\<forall>a \<in>s. \<forall>b \<in>s.  {a, b} \<notin> e)" using assms by (force simp add: invar_def)
+  hence "\<forall>s1 \<in>e. \<exists>a b. s1 = {a, b} \<and> (a \<notin> s \<or> b \<notin> s)" 
+  using prems(2) by metis
+  hence "\<forall>s1 \<in>e. \<exists>a \<in>s1. a\<notin>s" by auto
+  hence "\<forall>s1 \<in>e. \<exists>a \<in>s1. a \<in> v-s" using prems(1) by simp
+  then show "vertex_cover (is_to_vc (v, e)) (v-s)" by simp
+
+next
+  assume "vertex_cover (is_to_vc (v, e)) (v-s)"
+  hence "\<forall>s1 \<in>e. \<exists>a \<in>s1. a \<in>v-s" by simp
+  hence "\<forall>s1 \<in>e. \<exists>a \<in>s1. a \<in> v-s" by auto
+  hence "\<forall>a \<in>s. \<forall>b \<in>s. a \<noteq> b \<longrightarrow> {a, b} \<notin> e" by fastforce
+  then show "independent_set (v, e) s" by simp
+qed
+
+theorem is_to_vc_polynomial: "T_is_to_vc g = 1" by simp
+
+text \<open>reduction from clique to independent set\<close>
+
+fun clique_to_is :: "'a graph => 'a graph" where
+"clique_to_is g = (
+    let (v, e) = g in (v, {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b})
+)"
+
+fun T_clique_to_is :: "'a graph => nat" where
+"T_clique_to_is (v, e) = card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b}"
+
+theorem clique_to_is_correct : 
+assumes "invar (v, e)" "s \<subseteq> v"
+shows "clique (v, e) s = independent_set (clique_to_is (v, e)) s"
+using assms apply (auto simp add: invar_def) apply metis by blast
+
+theorem clique_to_is_polynomial : "\<lbrakk>invar (v, e); finite e; finite v\<rbrakk> 
+\<Longrightarrow> T_clique_to_is (v, e) = card v * (card v -1) div 2 - card e"
+using vc_to_clique_polynomial by auto
+
+theorem threeway_reduction_correct:
+assumes "invar (v, e)" "s \<subseteq> v"
+shows "clique (v, e) s = vertex_cover (is_to_vc (clique_to_is (v, e))) (v - s)"
+proof-
+
+have "clique (v, e) s = independent_set (clique_to_is (v, e)) s"
+ using clique_to_is_correct assms by blast
+
+also have "... = vertex_cover (is_to_vc (clique_to_is (v, e))) (v - s)"
+ using is_to_vc_correct assms 
+by (metis (mono_tags, lifting) clique_to_is.elims invar_vc_to_clique prod.simps(2) vc_to_clique.simps)
+
+finally show ?thesis  by simp
 qed
 
 end
