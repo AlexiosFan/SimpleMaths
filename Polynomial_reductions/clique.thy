@@ -1,8 +1,8 @@
 theory clique
-  imports Main sat
+  imports Main
 begin
 
-text \<open>Formalise the polynomial time reduction between vertex cover, 
+text \<open>Formalise the polynomial-time reduction between vertex cover, 
 clique and independent set\<close>
 
 section \<open>definitions\<close>
@@ -11,58 +11,58 @@ type_synonym 'a graph = "'a set \<times> ('a set set)"
 
 definition invar :: "'a graph => bool" where
 "invar g = (
-    let (v, e) = g in (\<forall>s \<in> e. (\<forall>x \<in> s. x \<in> v) \<and> card s = 2)
+    let (V, E) = g in (\<forall>s \<in> E. (\<forall>x \<in> s. x \<in> V) \<and> card s = 2)
 )"
 
 fun vertex_cover :: "'a graph => 'a set => bool" where
 "vertex_cover g s = (
-    let (_, e) = g in (\<forall>s1 \<in> e. \<exists>x \<in> s1. x \<in> s)
+    let (_, E) = g in (\<forall>s1 \<in> E. \<exists>x \<in> s1. x \<in> s)
 )"
 
 fun clique :: "'a graph => 'a set => bool" where
 "clique g s = (
-    let (_, e) = g in (\<forall>a \<in> s. \<forall> b \<in> s. a \<noteq> b \<longrightarrow> {a, b} \<in> e)
+    let (_, E) = g in (\<forall>a \<in> s. \<forall> b \<in> s. a \<noteq> b \<longrightarrow> {a, b} \<in> E)
 )"
 
 fun vc_to_clique :: "'a graph => 'a graph" where
 "vc_to_clique g = (
-    let (v, e) = g in (v, {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b})
+    let (V, E) = g in (V, {s. \<exists>a \<in> V. \<exists>b \<in> V. s = {a, b} \<and> s \<notin> E \<and> a \<noteq> b})
 )"
 
 fun T_vc_to_clique :: "'a graph => nat" where
-"T_vc_to_clique (v, e) = card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b}"
+"T_vc_to_clique (V, E) = card {s. \<exists>a \<in> V. \<exists>b \<in> V. s = {a, b} \<and> s \<notin> E \<and> a \<noteq> b}"
 
 section \<open>proofs of invariant, correctness and polynomial time\<close>
 
-theorem invar_vc_to_clique : "invar (v, e) \<Longrightarrow> invar (vc_to_clique (v, e))"
+theorem invar_vc_to_clique : "invar (V, E) \<Longrightarrow> invar (vc_to_clique (V, E))"
 by (auto simp add: invar_def)
 
 theorem vc_clique_correct: 
-assumes "invar (v, e)"
-shows "clique (vc_to_clique (v, e)) (v - s) = vertex_cover (v, e) s"
+assumes "invar (V, E)"
+shows "clique (vc_to_clique (V, E)) (V - s) = vertex_cover (V, E) s"
 proof 
-  have 1:"\<forall>a. {a} \<notin> e" using assms invar_def by force
-  from assms have prems: "\<forall>s \<in> e. (\<forall>x \<in> s. x \<in> v)" "\<forall>s \<in> e. \<exists>a \<in> v. \<exists> b \<in> v. s = {a, b}" 
+  have 1:"\<forall>a. {a} \<notin> E" using assms invar_def by force
+  from assms have prems: "\<forall>s \<in> E. (\<forall>x \<in> s. x \<in> V)" "\<forall>s \<in> E. \<exists>a \<in> V. \<exists> b \<in> V. s = {a, b}" 
   apply (auto simp: invar_def) by (metis card_2_iff insert_iff)
 
-  assume "clique (vc_to_clique (v, e)) (v - s)"
-  hence "\<forall>a \<in> v-s. \<forall>b \<in> v-s. a \<noteq> b \<longrightarrow> {a, b} \<in> {s. \<exists>a\<in>v. \<exists>b\<in>v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b}" by simp
-  hence "\<forall>a \<in> v-s. \<forall>b \<in> v-s. a \<noteq> b \<longrightarrow> {a, b} \<notin> e" by auto
-  hence "\<forall>a \<in> v-s. \<forall>b \<in> v-s. {a, b} \<notin> e" using 1 by force
-  hence "\<forall>s1 \<in> e. \<exists>a b. s1 = {a, b} \<and> (a \<notin> v-s \<or> b \<notin> v-s)" 
-  using prems(2) by (smt (z3) doubleton_eq_iff)
-  hence "\<forall>s1 \<in> e. \<exists>a \<in> s1. a \<notin> v-s"
+  assume "clique (vc_to_clique (V, E)) (V - s)"
+  hence "\<forall>a \<in> V-s. \<forall>b \<in> V-s. a \<noteq> b \<longrightarrow> {a, b} \<in> {s. \<exists>a\<in>V. \<exists>b\<in>V. s = {a, b} \<and> s \<notin> E \<and> a \<noteq> b}" by simp
+  hence "\<forall>a \<in> V-s. \<forall>b \<in> V-s. a \<noteq> b \<longrightarrow> {a, b} \<notin> E" by auto
+  hence "\<forall>a \<in> V-s. \<forall>b \<in> V-s. {a, b} \<notin> E" using 1 by force
+  hence "\<forall>s1 \<in> E. \<exists>a b. s1 = {a, b} \<and> (a \<notin> V-s \<or> b \<notin> V-s)" 
+  using prems(2) doubleton_eq_iff by fast
+  hence "\<forall>s1 \<in> E. \<exists>a \<in> s1. a \<notin> V-s"
   by auto
-  hence "\<forall>s1 \<in> e. \<exists>a \<in> s1. a \<in> s"
+  hence "\<forall>s1 \<in> E. \<exists>a \<in> s1. a \<in> s"
   using prems(1) by simp
-  thus "vertex_cover (v, e) s" by simp
+  thus "vertex_cover (V, E) s" by simp
 
 next 
-  assume "vertex_cover (v, e) s"
-  hence "\<forall>s1 \<in> e. \<exists>a \<in> s1. a \<in> s" by simp
-  hence "\<forall>s1 \<in> e. \<exists>a \<in> s1. a \<notin> v-s" by auto
-  hence "\<forall>a \<in>v-s. \<forall>b \<in>v-s. a \<noteq> b \<longrightarrow> {a, b} \<notin> e" by fast
-  thus "clique (vc_to_clique (v, e)) (v - s)" by auto
+  assume "vertex_cover (V, E) s"
+  hence "\<forall>s1 \<in> E. \<exists>a \<in> s1. a \<in> s" by simp
+  hence "\<forall>s1 \<in> E. \<exists>a \<in> s1. a \<notin> V-s" by auto
+  hence "\<forall>a \<in>V-s. \<forall>b \<in>V-s. a \<noteq> b \<longrightarrow> {a, b} \<notin> E" by fast
+  thus "clique (vc_to_clique (V, E)) (V - s)" by auto
 qed
 
 lemma aux0 :
@@ -101,9 +101,9 @@ next
 qed
 
 lemma aux: 
-assumes "finite v"
-shows "card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b} = card v * (card v - 1) div 2"
-using assms proof (induction v rule: finite_remove_induct)
+assumes "finite V"
+shows "card {s. \<exists>a \<in> V. \<exists>b \<in> V. s = {a, b} \<and> a \<noteq> b} = card V * (card V - 1) div 2"
+using assms proof (induction V rule: finite_remove_induct)
   case empty
   then show ?case by auto
 next
@@ -149,22 +149,22 @@ next
   then show ?case by auto
 qed
 
-theorem vc_to_clique_polynomial : "\<lbrakk>invar (v, e); finite e; finite v\<rbrakk> 
-\<Longrightarrow> T_vc_to_clique (v, e) = card v * (card v -1) div 2 - card e"
+theorem vc_to_clique_polynomial : "\<lbrakk>invar (V, E); finite E; finite V\<rbrakk> 
+\<Longrightarrow> T_vc_to_clique (V, E) = card V * (card V -1) div 2 - card E"
 proof-
 
-assume assms: "invar (v, e)" "finite e" "finite v"
-hence "\<forall>s \<in> e. \<exists>a \<in> v. \<exists> b \<in> v. s = {a, b} \<and> a \<noteq> b" 
+assume assms: "invar (V, E)" "finite E" "finite V"
+hence "\<forall>s \<in> E. \<exists>a \<in> V. \<exists> b \<in> V. s = {a, b} \<and> a \<noteq> b" 
 apply (auto simp add: invar_def) by (metis card_2_iff insert_iff)
 
-hence 1: "e \<subseteq> {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b}" by auto 
+hence 1: "E \<subseteq> {s. \<exists>a \<in> V. \<exists>b \<in> V. s = {a, b} \<and> a \<noteq> b}" by auto 
 
-have "{s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b} 
-  = {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b} - e" by auto
+have "{s. \<exists>a \<in> V. \<exists>b \<in> V. s = {a, b} \<and> s \<notin> E \<and> a \<noteq> b} 
+  = {s. \<exists>a \<in> V. \<exists>b \<in> V. s = {a, b} \<and> a \<noteq> b} - E" by auto
 from card_Diff_subset[OF assms(2) 1] this 
-have "card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b} = 
-card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> a \<noteq> b} - card e" by argo
-also have "... = card v * (card v - 1) div 2 - card e" by (auto simp add: aux[OF assms(3)])
+have "card {s. \<exists>a \<in> V. \<exists>b \<in> V. s = {a, b} \<and> s \<notin> E \<and> a \<noteq> b} = 
+card {s. \<exists>a \<in> V. \<exists>b \<in> V. s = {a, b} \<and> a \<noteq> b} - card E" by argo
+also have "... = card V * (card V - 1) div 2 - card E" by (auto simp add: aux[OF assms(3)])
 finally show ?thesis by simp
 
 qed
@@ -173,8 +173,8 @@ section \<open>independent set\<close>
 
 fun independent_set :: "'a graph => 'a set => bool" where
 "independent_set g s = (
-  let (v, e) = g in 
-    (\<forall>a \<in>s. \<forall>b \<in>s. a \<noteq> b \<longrightarrow> {a, b} \<notin> e)
+  let (V, E) = g in 
+    (\<forall>a \<in>s. \<forall>b \<in>s. a \<noteq> b \<longrightarrow> {a, b} \<notin> E)
 )"
 
 
@@ -186,27 +186,27 @@ fun T_is_to_vc :: "'a graph => nat" where
 "T_is_to_vc _ = 1"
 
 theorem is_to_vc_correct:
-assumes "invar (v, e)"
-shows "independent_set (v, e) s = vertex_cover (is_to_vc (v, e)) (v-s)"
+assumes "invar (V, E)"
+shows "independent_set (V, E) s = vertex_cover (is_to_vc (V, E)) (V-s)"
 proof
-  from assms have prems: "\<forall>s \<in> e. (\<forall>x \<in> s. x \<in> v)" "\<forall>s \<in> e. \<exists>a \<in> v. \<exists> b \<in> v. s = {a, b}" 
+  from assms have prems: "\<forall>s \<in> E. (\<forall>x \<in> s. x \<in> V)" "\<forall>s \<in> E. \<exists>a \<in> V. \<exists> b \<in> V. s = {a, b}" 
   apply (auto simp: invar_def) by (metis card_2_iff insert_iff)
 
-  assume "independent_set (v, e) s"
-  hence "\<forall>a \<in>s. \<forall>b \<in>s. a \<noteq> b \<longrightarrow> {a, b} \<notin> e" by simp
-  hence "(\<forall>a \<in>s. \<forall>b \<in>s.  {a, b} \<notin> e)" using assms by (force simp add: invar_def)
-  hence "\<forall>s1 \<in>e. \<exists>a b. s1 = {a, b} \<and> (a \<notin> s \<or> b \<notin> s)" 
+  assume "independent_set (V, E) s"
+  hence "\<forall>a \<in>s. \<forall>b \<in>s. a \<noteq> b \<longrightarrow> {a, b} \<notin> E" by simp
+  hence "(\<forall>a \<in>s. \<forall>b \<in>s.  {a, b} \<notin> E)" using assms by (force simp add: invar_def)
+  hence "\<forall>s1 \<in>E. \<exists>a b. s1 = {a, b} \<and> (a \<notin> s \<or> b \<notin> s)" 
   using prems(2) by metis
-  hence "\<forall>s1 \<in>e. \<exists>a \<in>s1. a\<notin>s" by auto
-  hence "\<forall>s1 \<in>e. \<exists>a \<in>s1. a \<in> v-s" using prems(1) by simp
-  then show "vertex_cover (is_to_vc (v, e)) (v-s)" by simp
+  hence "\<forall>s1 \<in>E. \<exists>a \<in>s1. a\<notin>s" by auto
+  hence "\<forall>s1 \<in>E. \<exists>a \<in>s1. a \<in> V-s" using prems(1) by simp
+  then show "vertex_cover (is_to_vc (V, E)) (V-s)" by simp
 
 next
-  assume "vertex_cover (is_to_vc (v, e)) (v-s)"
-  hence "\<forall>s1 \<in>e. \<exists>a \<in>s1. a \<in>v-s" by simp
-  hence "\<forall>s1 \<in>e. \<exists>a \<in>s1. a \<in> v-s" by auto
-  hence "\<forall>a \<in>s. \<forall>b \<in>s. a \<noteq> b \<longrightarrow> {a, b} \<notin> e" by fastforce
-  then show "independent_set (v, e) s" by simp
+  assume "vertex_cover (is_to_vc (V, E)) (V-s)"
+  hence "\<forall>s1 \<in>E. \<exists>a \<in>s1. a \<in>V-s" by simp
+  hence "\<forall>s1 \<in>E. \<exists>a \<in>s1. a \<in> V-s" by auto
+  hence "\<forall>a \<in>s. \<forall>b \<in>s. a \<noteq> b \<longrightarrow> {a, b} \<notin> E" by fastforce
+  then show "independent_set (V, E) s" by simp
 qed
 
 theorem is_to_vc_polynomial: "T_is_to_vc g = 1" by simp
@@ -215,34 +215,35 @@ text \<open>reduction from clique to independent set\<close>
 
 fun clique_to_is :: "'a graph => 'a graph" where
 "clique_to_is g = (
-    let (v, e) = g in (v, {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b})
+    let (V, E) = g in (V, {s. \<exists>a \<in> V. \<exists>b \<in> V. s = {a, b} \<and> s \<notin> E \<and> a \<noteq> b})
 )"
 
 fun T_clique_to_is :: "'a graph => nat" where
-"T_clique_to_is (v, e) = card {s. \<exists>a \<in> v. \<exists>b \<in> v. s = {a, b} \<and> s \<notin> e \<and> a \<noteq> b}"
+"T_clique_to_is (V, E) = card {s. \<exists>a \<in> V. \<exists>b \<in> V. s = {a, b} \<and> s \<notin> E \<and> a \<noteq> b}"
 
 theorem clique_to_is_correct : 
-assumes "invar (v, e)" "s \<subseteq> v"
-shows "clique (v, e) s = independent_set (clique_to_is (v, e)) s"
+assumes "invar (V, E)" "s \<subseteq> V"
+shows "clique (V, E) s = independent_set (clique_to_is (V, E)) s"
 using assms apply (auto simp add: invar_def) apply metis by blast
 
-theorem clique_to_is_polynomial : "\<lbrakk>invar (v, e); finite e; finite v\<rbrakk> 
-\<Longrightarrow> T_clique_to_is (v, e) = card v * (card v -1) div 2 - card e"
+theorem clique_to_is_polynomial : "\<lbrakk>invar (V, E); finite E; finite v\<rbrakk> 
+\<Longrightarrow> T_clique_to_is (V, E) = card V * (card V -1) div 2 - card E"
 using vc_to_clique_polynomial by auto
 
 theorem threeway_reduction_correct:
-assumes "invar (v, e)" "s \<subseteq> v"
-shows "clique (v, e) s = vertex_cover (is_to_vc (clique_to_is (v, e))) (v - s)"
+assumes "invar (V, E)" "s \<subseteq> V"
+shows "clique (V, E) s = vertex_cover (is_to_vc (clique_to_is (V, E))) (V - s)"
 proof-
 
-have "clique (v, e) s = independent_set (clique_to_is (v, e)) s"
+have "clique (V, E) s = independent_set (clique_to_is (V, E)) s"
  using clique_to_is_correct assms by blast
 
-also have "... = vertex_cover (is_to_vc (clique_to_is (v, e))) (v - s)"
+also have "... = vertex_cover (is_to_vc (clique_to_is (V, E))) (V - s)"
  using is_to_vc_correct assms 
 by (metis (mono_tags, lifting) clique_to_is.elims invar_vc_to_clique prod.simps(2) vc_to_clique.simps)
 
 finally show ?thesis  by simp
 qed
+
 
 end
